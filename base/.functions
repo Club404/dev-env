@@ -1,0 +1,127 @@
+# Define ls color mapping
+export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
+
+# Larger bash history (allow 32³ entries; default is 500)
+export HISTSIZE=50000000;
+export HISTFILESIZE=$HISTSIZE;
+export HISTCONTROL=ignoredups;
+# Make some commands not show up in history
+export HISTIGNORE=" *:ls:cd:cd -:pwd:exit:date:* --help:* -h:pony:pony add *:pony update *:pony save *:pony ls:pony ls *";
+
+# Prefer US English and use UTF-8
+export LANG="en_US.UTF-8";
+export LC_ALL="en_US.UTF-8";
+
+# Highlight section titles in manual pages
+export LESS_TERMCAP_md="${yellow}";
+
+# Don’t clear the screen after quitting a manual page
+export MANPAGER="less -X";
+
+# Clean Docker context
+unset DOCKER_TLS_VERIFY
+unset DOCKER_CERT_PATH
+unset DOCKER_MACHINE_NAME
+unset DOCKER_HOST
+
+# Create a new directory and enter it
+# ----------------------------------------------------------------------------------------------------------------------
+mkd() {
+        mkdir -p "$@" && cd "$@"
+}
+
+# Determine size of a file or total size of a directory
+# ----------------------------------------------------------------------------------------------------------------------
+fs() {
+        if du -b /dev/null > /dev/null 2>&1; then
+                local arg=-sbh
+        else
+                local arg=-sh
+        fi
+        if [[ -n "$@" ]]; then
+                du $arg -- "$@"
+        else
+                du $arg .[^.]* *
+        fi
+}
+
+# UTF-8-encode a string of Unicode symbols
+# ----------------------------------------------------------------------------------------------------------------------
+escape() {
+        printf "\\\x%s" $(printf "$@" | xxd -p -c1 -u)
+        # print a newline unless we’re piping the output to another program
+        if [ -t 1 ]; then
+                echo ""; # newline
+        fi
+}
+
+# Decode \x{ABCD}-style Unicode escape sequences
+# ----------------------------------------------------------------------------------------------------------------------
+unidecode() {
+        perl -e "binmode(STDOUT, ':utf8'); print \"$@\""
+        # print a newline unless we’re piping the output to another program
+        if [ -t 1 ]; then
+                echo ""; # newline
+        fi
+}
+
+# Get colors in manual pages
+# ----------------------------------------------------------------------------------------------------------------------
+man() {
+        env \
+                LESS_TERMCAP_mb=$(printf "\e[1;31m") \
+                LESS_TERMCAP_md=$(printf "\e[1;31m") \
+                LESS_TERMCAP_me=$(printf "\e[0m") \
+                LESS_TERMCAP_se=$(printf "\e[0m") \
+                LESS_TERMCAP_so=$(printf "\e[1;44;33m") \
+                LESS_TERMCAP_ue=$(printf "\e[0m") \
+                LESS_TERMCAP_us=$(printf "\e[1;32m") \
+                man "$@"
+}
+
+# Display ssh configuration
+# ----------------------------------------------------------------------------------------------------------------------
+ssh_config(){
+    local ssh_config_file="/root/.ssh/config"
+
+    if [[ -f ${ssh_config_file} ]]; then
+        cat ${ssh_config_file}
+    else
+        echo "${red}No ${ssh_config_file}!${reset}"
+    fi
+}
+
+# Create a .tar.gz archive, using `zopfli`, `pigz` or `gzip` for compression
+# ----------------------------------------------------------------------------------------------------------------------
+targz() {
+        local tmpFile="${@%/}.tar"
+        tar -cvf "${tmpFile}" --exclude=".DS_Store" "${@}" || return 1
+
+        size=$(
+        stat -f"%z" "${tmpFile}" 2> /dev/null; # OS X `stat`
+        stat -c"%s" "${tmpFile}" 2> /dev/null # GNU `stat`
+        )
+
+        local cmd=""
+        if (( size < 52428800 )) && hash zopfli 2> /dev/null; then
+                # the .tar file is smaller than 50 MB and Zopfli is available; use it
+                cmd="zopfli"
+        else
+                if hash pigz 2> /dev/null; then
+                        cmd="pigz"
+                else
+                        cmd="gzip"
+                fi
+        fi
+
+        echo "Compressing .tar using \`${cmd}\`…"
+        "${cmd}" -v "${tmpFile}" || return 1
+        [ -f "${tmpFile}" ] && rm "${tmpFile}"
+        echo "${tmpFile}.gz created successfully."
+}
+
+# Open a shell in a container
+# ----------------------------------------------------------------------------------------------------------------------
+d_enter(){
+    docker exec -it $1 bash
+}
