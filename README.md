@@ -14,7 +14,7 @@ vi .gitconfig.club404
         name = <YOUR_USERNAME>
         email = <YOUR_ACCOUNT_EMAIL>
 [url "https://<GITHUB_USERNAME>:<GITHUB_PERSONAL_ACCESS_TOKEN>@github.com/"]
-        insteadOf = https://github.com:
+        insteadOf = https://github.com/
 
 [alias]
         diff = diff --color-words | less -rS
